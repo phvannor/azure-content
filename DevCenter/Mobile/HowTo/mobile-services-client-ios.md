@@ -20,7 +20,9 @@ This guide shows you how to perform common scenarios using the iOS client for Wi
 
 - [What is Mobile Services][]
 - [Concepts][]
+- [Setup and Prerequisites][]
 - [How to: Create the Mobile Services client][]
+- [How to: Create a table reference][]
 - [How to: Query data from a mobile service][]
 	- [Filter returned data]
     - [Sort returned data]
@@ -40,7 +42,7 @@ This guide shows you how to perform common scenarios using the iOS client for Wi
 
 <div chunk="../chunks/mobile-services-concepts.md" />
 
-<h2><a name="setup"></a><span class="short-header">Setup and Prerequisites</span>How to: Setup and Prerequisites</h2>
+<h2><a name="Setup"></a>Setup and Prerequisites</h2>
 
 This guide assumes that you have created a mobile service with a table.  For more information see [Create a table](http://msdn.microsoft.com/en-us/library/windowsazure/jj193162.aspx). In the code used in this topic, we assume the table is named *ToDoItem*, and that it has the following columns:
 
@@ -50,28 +52,36 @@ This guide assumes that you have created a mobile service with a table.  For mor
 <li>complete</li>
 <li>duration</li>
 </ul>
-	
-When dynamic schema is enabled, Windows Azure Mobile Services automatically generates new columns based on the object in the insert or update request. For more information, see [Dynamic schema](http://go.microsoft.com/fwlink/?LinkId=296271).
 
-<h2><a name="create-client"></a><span class="short-header">Creating the client</span>How to: Create the Mobile Services client</h2>
+If you are creating your iOS application for the first time, make sure to add the "WindowsAzureMobileServices.framework" in your application's Link Binary With Libraries setting.
+
+In addition, don't forget to add the following reference in the appropriate files or in your applications pch file.
+
+	#import <WindowsAzureMobileServices/WindowsAzureMobileServices.h>
+
+todo: where should this go:  When dynamic schema is enabled, Windows Azure Mobile Services automatically generates new columns based on the object in the insert or update request. For more information, see [Dynamic schema](http://go.microsoft.com/fwlink/?LinkId=296271).
+
+<h2><a name="create-client"></a>How to: Create the Mobile Services client</h2>
 
 The following code creates the mobile service client object that is used to access your mobile service. 
 
 	MSClient *client = [MSClient clientWithApplicationURLString:@"MobileServiceUrl"
 								 applicationKey:@"AppKey"];
 
-In the code above, replace `MobileServiceUrl` and `AppKey` with the mobile service URL and application key, in that order. Both of these are available on the Windows Azure Management Portal, by selecting your mobile service and then clicking on "Dashboard".
+In the code above, replace `MobileServiceUrl` and `AppKey` with the mobile service URL and application key of your mobile service. Both of these are available on the Windows Azure Management Portal, by selecting your mobile service and then clicking on "Dashboard".
 
-You can also create your client with an NSURL:
+If desired, you can also create your client using an NSURL object.
+
 	MSClient *client = [MSClient clientWithApplicationURL:(NSURL *)url
 								 applicationKey:(NSString *)string];
 
+<h2><a name="tablereference"></a>How to: Create a table reference</h2>
 
-<h2><a name="querying"></a><span class="short-header">Querying data</span>How to: Query data from a mobile service</h2>
-
-The first thing you do to query or modify data is to create a [MobileServiceTable](http://go.microsoft.com/fwlink/?LinkId=290689) object.  
+The first thing you need is to get a reference to the table you want to query, update, or delete items from.
 
 	MSTable *table = [client tableWithName:@"ToDoItem"]; // replace "ToDoItem" with the name of your table.
+
+<h2><a name="querying"></a>How to: Query data from a mobile service</h2>
 
 Once you have a MSTable object you can then create your query.
 
