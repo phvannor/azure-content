@@ -40,7 +40,7 @@ This guide shows you how to perform common scenarios using the iOS client for Wi
 
 <div chunk="../chunks/mobile-services-concepts.md" />
 
-<h2><a name="setup"></a><span class="short-header">Setup and Prerequisites/span>How to: Setup and Prerequisites</h2>
+<h2><a name="setup"></a><span class="short-header">Setup and Prerequisites</span>How to: Setup and Prerequisites</h2>
 
 This guide assumes that you have created a mobile service with a table.  For more information see [Create a table](http://msdn.microsoft.com/en-us/library/windowsazure/jj193162.aspx). In the code used in this topic, we assume the table is named *ToDoItem*, and that it has the following columns:
 
