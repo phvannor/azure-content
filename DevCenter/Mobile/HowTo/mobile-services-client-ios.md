@@ -195,17 +195,44 @@ These will be appended to the resulting request as part of the querystring.  In 
 
 ## <a name="inserting"></a><span class="short-header">Inserting data</span>How to: Insert data into a mobile service</h2>
 
-_This section shows how to insert new rows into a table_
+To insert a new row into the table, you create a new NSDictionary object and pass that into your table object. Let's insert a new todo item into our table.
 
-<h2><a name="modifying"></a><span class="short-header">Modifying data</span>How to: Modify data in a mobile service</h2>
+	NSDictionary *newItem = @{"text": "my new item", @"complete" : @NO};
+	[table insert:newItem completion:^(NSDictionary *result, NSError *error) {
+		//result will contain the new item that was inserted
+		//depending on your server scripts it may have additional or modified data compared
+		//to what was passed to the server
+	}];	
 
-_This section shows how to update data in and delete data from a table_
+When you are inserting an item, it will fail if you manually set 'id' in the dictionary object.
 
-<h2><a name="binding"></a><span class="short-header">Binding data</span>How to: Bind data to the user interface</h2>
+## <a name="modifying"></a><span class="short-header">Modifying data</span>How to: Modify data in a mobile service</h2>
 
-_This section shows how to bind returned data objects to UI elements._
+To update an existing object, you can modify the item directly from a previous query and pass it back to the table object.
 
-<h2><a name="authentication"></a><span class="short-header">Authentication</span>How to: Authenticate users</h2>
+	NSMutableDictionary *item = [self.results.item objectAtIndex:0];
+	[item setObject:@YES forKey:"complete"];
+	[table update:item completion:^(NSDictionary *item, NSError *error) {
+		//handle errors or any additional logic as needed
+	}];
+
+? todo: what happens if you leave a field out of the dictionary, is it cleared
+
+To delete that item instead you can call
+
+	[table delete:item completion:^(NSDictionary *item, NSError *error) {
+		//handle errors or any additional logic as needed
+	}];
+
+or you can delete a record using its id directly if you don't have the item.
+
+	[table deleteWithId:[NSNumber numberWithInt:1] completion:^(NSDictionary *item, NSError *error) {
+		//handle errors or any additional logic as needed
+	}];	
+
+For both update and delete, when using an item the 'id' attribute must be set.
+
+## <a name="authentication"></a><span class="short-header">Authentication</span>How to: Authenticate users</h2>
 
 Mobile Services supports the following existing identity providers that you can use to authenticate users:
 
@@ -216,11 +243,40 @@ Mobile Services supports the following existing identity providers that you can 
 
 You can set permissions on tables to restrict access for specific operations to only authenticated users. You can also use the ID of an authenticated user to modify requests. For more information, see [Get started with authentication].
 
-Topics in this section describe authentication behaviors that are not covered in the tutorials.
+Once you have chosen your preferred method for authentication, and set it up for your mobile services you can add the following code to start the login process for a user
+
+	[client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES 
+			completion:^(MSUser *user, NSError *error) {
+				
+	}];
+	
+You can use Google, Facebook, or Twitter instead of MicrosoftAccount.  For the controller, specify the controller that will display the login UI.
+
+When this is called for the first time, the user will be presented with the appropriate login screen asking them for their user id and password.
+
+
 
 ###<a name="caching-tokens"></a>How to: Cache authentication tokens
 
-_This section shows how to cache an authentication token. Do this to prevent users from having to authenticate again (if app is "hibernated") while the token is still vaid. This will include info on expiring tokens, check with existing unified content._
+This section shows how to cache an authentication token. Do this to prevent users from having to authenticate again if app is "hibernated" while the token is still vaid.
+
+To do this you must store the User ID and authentication token locally on the device. The next time the app starts, you check the cache, and if these values are present, you can skip the login procedure and rehydrate the client with this data. However this data is sensitive, and it should be stored encrypted for safety in case the phone gets stolen.
+
+So what happens if your token expires? In this case, when you try to use it to connect, you will get a 401 unauthorized response. The user must then log in to obtain new tokens. You can avoid having to write code to handle this in every place in your app that calls Mobile Servides by using filters, which allow you to intercept calls to and responses from Mobile Services. The filter code will then test the response for a 401, trigger the login process if needed, and then resume the request that generated the 401.
+
+	//fix to be secure storage
+	if(self.user) {
+		[client loginWithProvider:@"MicrosoftAccount" token:self.user.mobileServiceAuthenticationToken 
+			completion:^(MSUser *user, NSError *error) {
+		
+		}];
+	} else {
+		[client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES 
+				completion:^(MSUser *user, NSError *error) {
+					self.user = user;				
+		}];	
+	}
+	
 
 <h2><a name="errors"></a><span class="short-header">Error handling</span>How to: Handle errors</h2>
 
