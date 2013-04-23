@@ -1,18 +1,12 @@
 <properties linkid="mobile-services-how-to-iOS-client" urlDisplayName="iOS Client Library" pageTitle="How to use the iOS client library - Windows Azure Mobile Services feature guide" metaKeywords="Windows Azure Mobile Services, Mobile Service iOS client library, iOS client library" writer="glenga" metaDescription="Learn how to use the iOS client library for Windows Azure Mobile Services." metaCanonical="" disqusComments="1" umbracoNaviHide="0" />
-
-
-
-<div chunk="../chunks/article-left-menu-iOS.md" />
-
+<div chunk="../chunks/article-left-menu-iOS.md"></div>
 # How to use the iOS client library for Mobile Services
-
 <div class="dev-center-tutorial-selector"> 
   <a href="/en-us/develop/mobile/how-to-guides/how-to-dotnet-client" title=".NET Framework">.NET Framework</a>
-    <a href="/en-us/develop/mobile/how-to-guides/how-to-js-client" title="JavaScript">JavaScript</a> 
+  	<a href="/en-us/develop/mobile/how-to-guides/how-to-js-client" title="JavaScript">JavaScript</a> 
 	<a href="/en-us/develop/mobile/how-to-guides/how-to-ios-client" title="Objective-C">Objective-C</a> 
 	<a href="/en-us/develop/mobile/how-to-guides/how-to-android-client" title="Java">Java</a>
 </div>	
-
 
 This guide shows you how to perform common scenarios using the iOS client for Windows Azure Mobile Services. The samples are written in objective-C and require the [Mobile Services SDK].  This tutorial also requires the [iOS SDK]. The scenarios covered include querying for data; inserting, updating, and deleting data, authenticating users, handling errors, and uploading BLOB data. If you are new to Mobile Services, you should consider first completing the [Mobile Services quickstart][Get started with Mobile Services]. The quickstart tutorial helps you configure your account and create your first mobile service.
 
@@ -42,7 +36,7 @@ This guide shows you how to perform common scenarios using the iOS client for Wi
 
 <div chunk="../chunks/mobile-services-concepts.md" />
 
-<h2><a name="Setup"></a>Setup and Prerequisites</h2>
+##<a name="Setup"></a>Setup and Prerequisites</h2>
 
 This guide assumes that you have created a mobile service with a table.  For more information see [Create a table](http://msdn.microsoft.com/en-us/library/windowsazure/jj193162.aspx). In the code used in this topic, we assume the table is named *ToDoItem*, and that it has the following columns:
 
@@ -61,13 +55,12 @@ In addition, don't forget to add the following reference in the appropriate file
 
 todo: where should this go:  When dynamic schema is enabled, Windows Azure Mobile Services automatically generates new columns based on the object in the insert or update request. For more information, see [Dynamic schema](http://go.microsoft.com/fwlink/?LinkId=296271).
 
-<h2><a name="create-client"></a>How to: Create the Mobile Services client</h2>
+## <a name="create-client"></a>How to: Create the Mobile Services client
 
 The following code creates the mobile service client object that is used to access your mobile service. 
 
-	MSClient *client = [MSClient clientWithApplicationURLString:@"MobileServiceUrl"
-								 applicationKey:@"AppKey"];
-
+	MSClient *client = [MSClient clientWithApplicationURLString:@"MobileServiceUrl" applicationKey:@"AppKey"]
+	
 In the code above, replace `MobileServiceUrl` and `AppKey` with the mobile service URL and application key of your mobile service. Both of these are available on the Windows Azure Management Portal, by selecting your mobile service and then clicking on "Dashboard".
 
 If desired, you can also create your client using an NSURL object.
@@ -75,7 +68,7 @@ If desired, you can also create your client using an NSURL object.
 	MSClient *client = [MSClient clientWithApplicationURL:(NSURL *)url
 								 applicationKey:(NSString *)string];
 
-<h2><a name="tablereference"></a>How to: Create a table reference</h2>
+## <a name="table-reference"></a>How to: Create a table reference</h2>
 
 The first thing you need is to get a reference to the table you want to query, update, or delete items from.
 
@@ -83,27 +76,124 @@ The first thing you need is to get a reference to the table you want to query, u
 
 <h2><a name="querying"></a>How to: Query data from a mobile service</h2>
 
-Once you have a MSTable object you can then create your query.
+Once you have a MSTable object you can then create your query.  To start, lets do a simple query to get all the items in our todo table.  In this case, we will just write the text of the task to the log.
 
-This section describes how to issue queries to the mobile service. Subsections describe diffent aspects of queries.
+	[table readWithCompletion:^(NSArray *items, NSInteger totalCount, NSError *error) {
+		if(error) {
+			NSLog(@"ERROR %@", error);
+		} else {
+			for(NSDictionary *item in results) {
+				NSLog(@"Todo Item: %@", [item objectForKey:@"text"]);
+			}
+		}
+	}];
+
+The parameters available to you in the callback are:
+* items: An NSArray of the records that matched your query
+* totalCount: is set to -1 unless your query asks for the total count (not just those returned in the query)
+* error: the error that occurred, or nil
 
 ### <a name="filtering"></a>How to: Filter returned data
 
-_This section shows how to filter data by including a **where** clause in the query._
+When you want to filter your results, you have a number of options available to you. To get a specific record from the table you can do
 
-### <a name="sorting"></a>How to: Sort returned data
+	[table readWithId:[NSNumber numberWithInt:1] completion:^(NSDictionary *item, NSError *error) {
+		//your code here
+	}];
 
-_This section shows how to sort data by including an **orderby** clause in the query._
+Note that in this case the callback parameters are slightly different.  Instead of getting an array of results and an optional count, you instead just get the one record back.
 
-### <a name="paging"></a>How to: Return data in pages
+When you want to filter your results instead, you can use
 
-_This section shows how to implement paging in returned data by using the **top/take** and **skip** clauses in the query._
+	[table readWithPredicate:(NSPredicate *)predicate completion:(MSReadQueryBlock)completion];
+	
+So if we wanted to get only the items in our todo table that were incomplete we could do
 
-### <a name="selecting"></a>How to: Select specific columns
+	NSPredicate *predicate = [NSPredicate predicateWithFormat:@"complete == NO"];
+	[table readWithPredicate:predicate completion:^(NSArray *items, NSInteger totalCount, NSError *error) {
+		//loop through our results
+	}];
 
-_This section shows how to return only specific fields by using a **select** clause in the query--projection into a new type._
 
-<h2><a name="inserting"></a><span class="short-header">Inserting data</span>How to: Insert data into a mobile service</h2>
+### <a name="query-object"></a>How to: Use MSQuery
+
+Often you will need to do more than just specify the filter on your query. When you want to change the sort order on your results, or limit the amount you get back, you will want to get a MSQuery object.
+
+	MSQuery *query = [table query];	
+	MSQuery *query = [table queryWithPredicate:(NSPredicate *)predicate;
+
+The MSQuery object lets you
+* Specify the order results are returned
+* Limit which fields are returned
+* Set how many results to return
+* Whether you want to include the total count
+* Specify your own query string parameters to send
+
+Once you have finished modifying the query, call the readWithCompletion method
+
+	[query readWithCompletion:(NSArray *items, NSInteger totalCount, NSError *error) {
+		//code to parse results here
+	}];
+
+#### <a name="sorting"></a>Using MSQuery to sort returned data
+
+To sort your data you specify the field you want to sort by and the direction using:
+	-(void) orderByAscending:(NSString *)field
+	-(void) orderByDescending:(NSString *)field
+	
+If we wanted to sort our to do list by duration and then whether it was complete we would do:
+
+	[query orderByAscending(@"duration")];
+	[query orderByAscending(@"complete")];
+	[query readWithCompletion:(NSArray *items, NSInteger totalCount, NSError *error) {
+		//code to parse results here
+	}];	
+
+#### <a name="paging"></a>Using MSQuery to get pages of data
+
+Instead of showing all results at once, you typically need to set up a paging system.  This can be done by using the following three properties of the MSQuery object
+
+	BOOL includeTotalCount
+	NSInteger fetchLimit
+	NSInteger fetchOffset
+
+In this example, we have a simple function that grabs 20 records from the server and appends them to a local copy of all the records loaded.
+
+	- (bool) loadResults() {
+		MSQuery *query = [self.table query];
+
+		query.includeTotalCount = YES;
+		query.fetchLimit = 20;
+		query.fetchOffset = self.loadedItems.count;
+		[query readWithCompletion:(NSArray *items, NSInteger totalCount, NSError *error) {
+			if(!error) {
+				//add the items to our local copy
+				[self.loadedItems addObjectsFromArray:items];		
+
+				//set a flag to keep track if there are any additional records we need to load
+				self.moreResults = (self.loadedItems.count < totalCount);
+			}
+		}];
+	}
+
+#### <a name="selecting"></a>Using MSQuery to limit the fields returned
+
+To limit which field are returned from your query, simply specify the names of the fields you want in the selectFields property.
+
+	query.selectFields = @["text", @"completed"];
+
+#### <a name="parameters"></a>Using MSQuery to specify additional querystring parameters
+
+Its also possible to send along additional querystring parameters to the server for your server side scripts to process.  [todo: link to appropriate information on this]
+
+	query.parameters = @{
+		@"myKey1" : @"value1",
+		@"myKey2" : @"value2",
+	};
+
+These will be appended to the resulting request as part of the querystring.  In this example they would appear at the end as myKey1=value1&myKey2=value2
+
+## <a name="inserting"></a><span class="short-header">Inserting data</span>How to: Insert data into a mobile service</h2>
 
 _This section shows how to insert new rows into a table_
 
@@ -162,7 +252,9 @@ For more information see, New topic about processing headers in the server-side.
 
 [What is Mobile Services]: #what-is
 [Concepts]: #concepts
+[Setup and Prerequisites]: #Setup
 [How to: Create the Mobile Services client]: #create-client
+[How to: Create a table reference]: #table-reference
 [How to: Query data from a mobile service]: #querying
 [Filter returned data]: #filtering
 [Sort returned data]: #sorting
