@@ -243,16 +243,24 @@ Mobile Services supports the following existing identity providers that you can 
 
 You can set permissions on tables to restrict access for specific operations to only authenticated users. You can also use the ID of an authenticated user to modify requests. For more information, see [Get started with authentication].
 
-Once you have chosen your preferred method for authentication, and set it up for your mobile services you can add the following code to start the login process for a user
+### Standard Login Workflow
 
-	[client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES 
-			completion:^(MSUser *user, NSError *error) {
-				
+To login with Facebook, use the following code. This will display a standard UI for logging into the identity provider.  For this code, we are assuming it is being called from a currently displayed UIViewController. 
+
+	[client loginWithProvider:@"facebook" controller:self animated:YES 
+		completion:^(MSUser *user, NSError *error) {
+		if(error) {
+			//display error message to user
+		} else {
+			//set up any user specific fields/data
+		}
 	}];
-	
-You can use Google, Facebook, or Twitter instead of MicrosoftAccount.  For the controller, specify the controller that will display the login UI.
 
-When this is called for the first time, the user will be presented with the appropriate login screen asking them for their user id and password.
+If you are using an identity provider other than Facebook, change the value passed to the login method above to one of the following: microsoftaccount, twitter, or google.
+
+### Using single-sign-on
+
+When you already have an authenticated user, or you are using your own UI to authenticate the user, you may want to instead log them in by providing the appropriate token instead.
 
 
 
