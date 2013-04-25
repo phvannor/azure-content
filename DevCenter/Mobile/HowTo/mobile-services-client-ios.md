@@ -216,23 +216,28 @@ To update an existing object, you can modify the item directly from a previous q
 		//handle errors or any additional logic as needed
 	}];
 
-? todo: what happens if you leave a field out of the dictionary, is it cleared
+If you only need to update one field on an item, you can instead create a dictionary that specifies the Id and just the fields you want to update.
 
-To delete that item instead you can call
+	[table update:@{"id" : 1, "Complete": Yes} completion:^(NSDictionary *item, NSError *error) {
+		//handle errors or any additional logic as needed
+	}];
+	
+	
+To delete an item from the table, simply pass the item to the delete method.
 
 	[table delete:item completion:^(NSDictionary *item, NSError *error) {
 		//handle errors or any additional logic as needed
 	}];
 
-or you can delete a record using its id directly if you don't have the item.
+You can also just delete a record using its id directly.
 
 	[table deleteWithId:[NSNumber numberWithInt:1] completion:^(NSDictionary *item, NSError *error) {
 		//handle errors or any additional logic as needed
 	}];	
 
-For both update and delete, when using an item the 'id' attribute must be set.
+For both updates and deletes when using an item the 'id' attribute must be set.
 
-## <a name="authentication"></a><span class="short-header">Authentication</span>How to: Authenticate users</h2>
+## <a name="authentication"></a>How to: Authenticate users</h2>
 
 Mobile Services supports the following existing identity providers that you can use to authenticate users:
 
@@ -245,45 +250,81 @@ You can set permissions on tables to restrict access for specific operations to 
 
 ### Standard Login Workflow
 
-To login with Facebook, use the following code. This will display a standard UI for logging into the identity provider.  For this code, we are assuming it is being called from a currently displayed UIViewController. 
+Here is an example of how to login using FaceBook. This code could be called in your controller's ViewDidLoad or manually triggered from a UIButton. This will display a standard UI for logging into the identity provider.
 
-	[client loginWithProvider:@"facebook" controller:self animated:YES 
+	[client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES
 		completion:^(MSUser *user, NSError *error) {
-		if(error) {
-			//display error message to user
-		} else {
-			//set up any user specific fields/data
-		}
-	}];
+			NSString *msg;
+			if(error) {
+				msg = [@"An error occured: " stringByAppendingString:error.description];
+			} else {
+				msg = [@"You are logged in as " stringByAppendingString:user.userId];
+			}
+		
+			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Login" 
+								  message:msg 
+								  delegate:nil 
+								  cancelButtonTitle:@"OK" 
+								  otherButtonTitles: nil];
+			[alert show];
+	}];	
 
-If you are using an identity provider other than Facebook, change the value passed to the login method above to one of the following: microsoftaccount, twitter, or google.
+Note: if you are using an identity provider other than Facebook, change the value passed to the login method above to one of the following: microsoftaccount, twitter, or google.
+
+You can also get a reference to the MSLoginController and display it yourself using:
+
+	-(MSLoginController *)loginViewControllerWithProvider:(NSString *)provider completion:(MSClientLoginBlock)completion;
 
 ### Using single-sign-on
 
-When you already have an authenticated user, or you are using your own UI to authenticate the user, you may want to instead log them in by providing the appropriate token instead.
+When you already have an authenticated user you may want to instead log them in by providing the appropriate authentication token.
 
+In this example, we will use the [Live SDK](http://msdn.microsoft.com/en-us/library/live/hh826532.aspx), which supports single-sign-on for iOS apps. In the most simplified form, we can use the cient flow as shown in this snippet. This code assumes that you have previously created a LiveConnectClient named liveClient in the controller and the user had logged in.
+	
+	[client loginWithProvider:@"microsoftaccount" 
+		token:@{@"authenticationToken" : self.liveClient.session.authenticationToken}
+		completion:^(MSUser *user, NSError *error) {
+			self.loggedInUser = user;
+			NSString *msg = [@"You are logged in as " stringByAppendingString:user.userId];
+			UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Login" 
+				message:msg 
+				delegate:nil 
+				cancelButtonTitle:@"OK" 
+				otherButtonTitles: nil];
+			[alert show];
+	}];
 
+? todo: Differences with the other SDKs
 
 ###<a name="caching-tokens"></a>How to: Cache authentication tokens
 
-This section shows how to cache an authentication token. Do this to prevent users from having to authenticate again if app is "hibernated" while the token is still vaid.
+To prevent users from having to authenticate everytime they use your application, you can cache the current user identity after they log in. You can then use this information to create the user directly and bypass the login process.  To do this you must store the User ID and authentication token locally. However this data is sensitive, and it should be stored encrypted for safety in case the phone gets stolen.
 
-To do this you must store the User ID and authentication token locally on the device. The next time the app starts, you check the cache, and if these values are present, you can skip the login procedure and rehydrate the client with this data. However this data is sensitive, and it should be stored encrypted for safety in case the phone gets stolen.
+The user will then not have to login again until the token expires. So what happens if your token expires? In this case, when you try to use it to connect, you will get a 401 unauthorized response. The user must then log in to obtain new tokens. You can avoid having to write code to handle this in every place in your app that calls Mobile Servides by using filters, which allow you to intercept calls to and responses from Mobile Services. The filter code will then test the response for a 401, trigger the login process if needed, and then resume the request that generated the 401.
 
-So what happens if your token expires? In this case, when you try to use it to connect, you will get a 401 unauthorized response. The user must then log in to obtain new tokens. You can avoid having to write code to handle this in every place in your app that calls Mobile Servides by using filters, which allow you to intercept calls to and responses from Mobile Services. The filter code will then test the response for a 401, trigger the login process if needed, and then resume the request that generated the 401.
+In the following example, we are caching this information in the [KeyChain](https://developer.apple.com/library/mac/#documentation/security/Conceptual/keychainServConcepts/02concepts/concepts.html#//apple_ref/doc/uid/TP30000897-CH204-TP9)
 
-	//fix to be secure storage
-	if(self.user) {
-		[client loginWithProvider:@"MicrosoftAccount" token:self.user.mobileServiceAuthenticationToken 
-			completion:^(MSUser *user, NSError *error) {
+	//todo: load data from KeyChain...
+	
+	
+	//attempt to log user in with cache	
+	if(self.cachedUserId) {
+		MSUser *user = [[MSUser alloc] initWithUserId:self.cachedUserId];
+		user.mobileServiceAuthenticationToken = self.cachedAuthenticationToken;
 		
-		}];
+		[self.todoService.client setCurrentUser:user];
 	} else {
-		[client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES 
-				completion:^(MSUser *user, NSError *error) {
-					self.user = user;				
-		}];	
+		//initial log in, cache the data
+		[self.todoService.client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES
+			completion:^(MSUser *user, NSError *error) {
+			//normal login code
+			...
+			//cache the information we want
+			self.cachedUserId = user.userId;
+			self.cachedAuthenticationToken = user.mobileServiceAuthenticationToken;
+		}];
 	}
+	
 	
 
 <h2><a name="errors"></a><span class="short-header">Error handling</span>How to: Handle errors</h2>
