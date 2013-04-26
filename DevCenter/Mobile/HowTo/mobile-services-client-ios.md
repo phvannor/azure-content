@@ -304,28 +304,56 @@ The user will then not have to login again until the token expires. So what happ
 
 In the following example, we are caching this information in the [KeyChain](https://developer.apple.com/library/mac/#documentation/security/Conceptual/keychainServConcepts/02concepts/concepts.html#//apple_ref/doc/uid/TP30000897-CH204-TP9)
 
-	//todo: load data from KeyChain...
-	
-	
-	//attempt to log user in with cache	
-	if(self.cachedUserId) {
-		MSUser *user = [[MSUser alloc] initWithUserId:self.cachedUserId];
-		user.mobileServiceAuthenticationToken = self.cachedAuthenticationToken;
-		
-		[self.todoService.client setCurrentUser:user];
-	} else {
-		//initial log in, cache the data
-		[self.todoService.client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES
-			completion:^(MSUser *user, NSError *error) {
-			//normal login code
-			...
-			//cache the information we want
-			self.cachedUserId = user.userId;
-			self.cachedAuthenticationToken = user.mobileServiceAuthenticationToken;
-		}];
+	- (NSMutableDictionary *) createKeyChainQueryWithClient:(MSClient *)client andIsSearch:(bool)isSearch
+	{
+		NSMutableDictionary *query = [[NSMutableDictionary alloc] init];
+		[query setObject:(__bridge id)kSecClassInternetPassword forKey:(__bridge id)(kSecClass)];
+		[query setObject:client.applicationURL.absoluteString forKey:(__bridge id)(kSecAttrServer)];
+    	
+		if(isSearch) {
+			// Use the proper search constants, return only the attributes of the first match.
+			[query setObject:(__bridge id)kSecMatchLimitOne forKey:(__bridge id)kSecMatchLimit];
+			[query setObject:(id)kCFBooleanTrue forKey:(__bridge id)kSecReturnAttributes];
+			[query setObject:(id)kCFBooleanTrue forKey:(__bridge id)kSecReturnData];
+		}
+    
+		return query;
 	}
-	
-	
+
+	- (IBAction)loginUser:(id)sender {
+		NSMutableDictionary *query = [self createKeyChainQueryWithClient:self.todoService.client andIsSearch:YES];
+		CFDictionaryRef cfresult;
+
+		OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, (CFTypeRef *)&cfresult);
+		if (status == noErr) {
+			NSDictionary * result = (__bridge_transfer NSDictionary*) cfresult;
+			
+			//create an MSUser object
+			MSUser *user = [[MSUser alloc] initWithUserId:[result objectForKey:(__bridge id)(kSecAttrAccount)]];
+			NSData *data = [result objectForKey:(__bridge id)(kSecValueData)];
+			user.mobileServiceAuthenticationToken = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+			[self.todoService.client setCurrentUser:user];
+			
+		} else if (status == errSecItemNotFound) {
+			//we need to log the user in
+			[self.todoService.client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES
+				completion:^(MSUser *user, NSError *error) {
+					NSString *msg = [@"You are logged in as " stringByAppendingString:user.userId];
+					UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Login" message:msg delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
+					[alert show];
+                
+					//save the user id and token to the KeyChain
+					NSMutableDictionary *newItem = [self createKeyChainQueryWithClient:self.todoService.client andIsSearch:NO];
+					[newItem setObject:user.userId forKey:(__bridge id)kSecAttrAccount];
+					[newItem setObject:[user.mobileServiceAuthenticationToken dataUsingEncoding:NSUTF8StringEncoding] forKey:(__bridge id)kSecValueData];
+                 
+					OSStatus status = SecItemAdd((__bridge CFDictionaryRef)newItem, NULL);
+					if(status != errSecSuccess) {
+						//handle error as needed
+						NSAssert(NO, @"Error caching password.");
+					}
+			}];
+		}	
 
 <h2><a name="errors"></a><span class="short-header">Error handling</span>How to: Handle errors</h2>
 
