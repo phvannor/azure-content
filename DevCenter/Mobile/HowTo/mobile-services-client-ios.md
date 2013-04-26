@@ -339,13 +339,18 @@ In the following example, we are caching this information in the [KeyChain](http
 			[self.todoService.client loginWithProvider:@"MicrosoftAccount" controller:self animated:YES
 				completion:^(MSUser *user, NSError *error) {
 					NSString *msg = [@"You are logged in as " stringByAppendingString:user.userId];
-					UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Login" message:msg delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil];
+					UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Login" 
+											message:msg delegate:nil 
+											cancelButtonTitle:@"OK" 
+											otherButtonTitles: nil];
 					[alert show];
                 
 					//save the user id and token to the KeyChain
-					NSMutableDictionary *newItem = [self createKeyChainQueryWithClient:self.todoService.client andIsSearch:NO];
+					NSMutableDictionary *newItem = [self createKeyChainQueryWithClient:self.todoService.client 
+															andIsSearch:NO];
 					[newItem setObject:user.userId forKey:(__bridge id)kSecAttrAccount];
-					[newItem setObject:[user.mobileServiceAuthenticationToken dataUsingEncoding:NSUTF8StringEncoding] forKey:(__bridge id)kSecValueData];
+					[newItem setObject:[user.mobileServiceAuthenticationToken dataUsingEncoding:NSUTF8StringEncoding] 
+                                                    forKey:(__bridge id)kSecValueData];
                  
 					OSStatus status = SecItemAdd((__bridge CFDictionaryRef)newItem, NULL);
 					if(status != errSecSuccess) {
@@ -354,6 +359,9 @@ In the following example, we are caching this information in the [KeyChain](http
 					}
 			}];
 		}	
+
+When you are caching tokens however, you should be aware that they are set to expire. When this happens you must catch the 404 result from the server and handle it accordingly. The easiest way to accomplish this is by adding a service filter onto the client. For details you can see [Handling Expired Tokens](http://www.thejoyofcode.com/Handling_expired_tokens_in_your_application_Day_11_.aspx).
+
 
 <h2><a name="errors"></a><span class="short-header">Error handling</span>How to: Handle errors</h2>
 
