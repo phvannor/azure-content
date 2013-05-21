@@ -365,10 +365,17 @@ Note: This data is sensitive, and it should be stored encrypted for safety in ca
 
 Todo: Show code for handling an expired token: Service filter onto the client. For details you can see [Handling Expired Tokens](http://www.thejoyofcode.com/Handling_expired_tokens_in_your_application_Day_11_.aspx).
 
-
 <h2><a name="errors"></a><span class="short-header">Error handling</span>How to: Handle errors</h2>
 
-_This section shows how to perform property error handling._
+Whenever a call is made, the completion block contains a 'NSError *error` parameter. This parameter will be non null whenever an error has occurred. It is recommended to check that it is null in your code or handle the error as needed.
+
+When an error has occured, you can get more information by including the MSError.h file. This will allow you to access the following data from `[error userInfo]`
+* *MSErrorResponseKey*: the HTTP response data associated with the error
+* *MSErrorRequestKey*: the HTTP request data associated with the error
+
+In addition the error codes and explanations can also be found in the MSError.h file.
+
+You can see an example of doing validation and handling any errors [here](https://www.windowsazure.com/en-us/develop/mobile/tutorials/validate-modify-and-augment-data-ios/), which implements validation via server scripts that return exceptions on error, and client code that handles the excpetions.
 
 <h2><a name="#unit-testing"></a><span class="short-header">Designing tests</span>How to: Design unit tests</h2>
 
